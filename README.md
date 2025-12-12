@@ -19,7 +19,7 @@
 - [ ] **Frontend (Next.js 15)**
   - Run: `npx create-next-app@latest velax --typescript --tailwind --eslint`.
   - _Note:_ Select `App Router`.
-  - Install Core Deps: `npm install @mysten/sui @mysten/dapp-kit clsx tailwind-merge @supabase/supabase-js`.
+  - Install Core Deps: `npm install @mysten/sui @mysten/dapp-kit clsx tailwind-merge @supabase/supabase-js @tanstack/react-query`.
 - [ ] **Backend (Supabase)**
   - Create new Project "Velax".
   - Create Table: `items`
@@ -119,7 +119,7 @@
 - Next.js 15 (App Router)
 - Tailwind CSS (Styling)
 - Lucide React (Icons)
-- _No React Query_ (Using native Fetch/Server Actions)
+- React Query
 
 **Blockchain:**
 
