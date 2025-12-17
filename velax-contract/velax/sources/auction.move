@@ -1,5 +1,6 @@
 module velax::auction {
     use std::string::{Self, String};
+    use std::option::{Self, Option}; // <--- THIS WAS MISSING
     use sui::url::{Self, Url};
     use sui::object::{Self, ID, UID};
     use sui::event;
@@ -11,10 +12,7 @@ module velax::auction {
     use sui::balance::{Self, Balance};
 
     // --- Errors ---
-    const E_AUCTION_NOT_STARTED: u64 = 1;
-    const E_AUCTION_ENDED: u64 = 2;
     const E_BID_TOO_LOW: u64 = 3;
-    const E_NOT_SELLER: u64 = 4;
 
     // --- Structs ---
 
@@ -37,7 +35,7 @@ module velax::auction {
         funds: Balance<SUI>     // Holds the active bid funds
     }
 
-    // --- Events (For Supabase Indexing) ---
+    // --- Events ---
     public struct AuctionCreated has copy, drop {
         auction_id: ID,
         nft_id: ID,
@@ -60,7 +58,7 @@ module velax::auction {
 
     // --- Functions ---
 
-    // 1. Mint NFT and Create Auction in ONE step (Saves time/gas)
+    // 1. Mint NFT and Create Auction
     public entry fun create_auction(
         name: vector<u8>,
         description: vector<u8>,
@@ -80,14 +78,14 @@ module velax::auction {
             url: url::new_unsafe_from_bytes(url)
         };
         let nft_id = object::id(&nft);
-        let nft_url_str = string::utf8(url); // For event
+        let nft_url_str = string::utf8(url);
 
         // Create Auction
         let end_time =  sui::clock::timestamp_ms(clock) + duration_ms;
         
         let auction = Auction {
             id: object::new(ctx),
-            nft: option::some(nft), // Put NFT inside auction
+            nft: option::some(nft),
             seller: sender,
             highest_bidder: option::none(),
             highest_bid: starting_price,
@@ -95,7 +93,6 @@ module velax::auction {
             funds: balance::zero()
         };
 
-        // Emit Event for Supabase
         event::emit(AuctionCreated {
             auction_id: object::id(&auction),
             nft_id,
@@ -104,7 +101,6 @@ module velax::auction {
             image_url: nft_url_str
         });
 
-        // Share object so anyone can bid
         transfer::share_object(auction);
     }
 
@@ -115,8 +111,9 @@ module velax::auction {
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        let now = sui::clock::timestamp_ms(clock);
-        // assert!(now < auction.end_time, E_AUCTION_ENDED); // Commented out for easier testing, uncomment for prod
+        // Uncomment in production to enforce time limits:
+        // let now = sui::clock::timestamp_ms(clock);
+        // assert!(now < auction.end_time, 2); 
         
         let payment_value = coin::value(&payment);
         assert!(payment_value > auction.highest_bid, E_BID_TOO_LOW);
@@ -153,8 +150,9 @@ module velax::auction {
         clock: &Clock,
         ctx: &mut TxContext
     ) {
-        let now = sui::clock::timestamp_ms(clock);
-        // assert!(now >= auction.end_time, E_AUCTION_NOT_STARTED); // Validates auction is over
+        // Uncomment in production:
+        // let now = sui::clock::timestamp_ms(clock);
+        // assert!(now >= auction.end_time, 1);
 
         // 1. Send Money to Seller
         let funds_amount = balance::value(&auction.funds);
