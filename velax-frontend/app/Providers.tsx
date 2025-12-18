@@ -9,6 +9,7 @@ import {
 import { getFullnodeUrl } from "@mysten/sui/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { registerEnokiWallets } from "@mysten/enoki";
+import { EnokiFlowProvider } from "@mysten/enoki/react";
 import { ReactNode, useEffect } from "react";
 import "@mysten/dapp-kit/dist/index.css";
 
@@ -48,11 +49,13 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
-        {/* 1. Register Enoki Wallets first */}
-        <EnokiWalletWrapper />
+        <EnokiFlowProvider apiKey={process.env.NEXT_PUBLIC_ENOKI_API_KEY!}>
+          {/* 1. Register Enoki Wallets first */}
+          <EnokiWalletWrapper />
 
-        {/* 2. Then load the Wallet Provider (which will now see Google as a wallet) */}
-        <WalletProvider autoConnect>{children}</WalletProvider>
+          {/* 2. Then load the Wallet Provider (which will now see Google as a wallet) */}
+          <WalletProvider autoConnect>{children}</WalletProvider>
+        </EnokiFlowProvider>
       </SuiClientProvider>
     </QueryClientProvider>
   );
