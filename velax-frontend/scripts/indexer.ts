@@ -1,66 +1,64 @@
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
 
-// Load environment variables
-dotenv.config({ path: ".env.local" });
+// --- CONFIGURATION ---
+// 1. Get these from your .env.local or hardcode them here for the script
+const SUPABASE_URL = "https://urqzczkgwrmzcuxiomez.supabase.co";
+const SUPABASE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycXpjemtnd3JtemN1eGlvbWV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwMjEyNjIsImV4cCI6MjA4MTU5NzI2Mn0.4QlkF_8qQ76rs2YxnyTudtVsXAJJtCRNevz1ZuWUtdQ";
+const PACKAGE_ID =
+  "0xd1c395da20567fff79185d374be6d5d3f41fed6f4f0bb874c5ea198d803cd84c"; // The one starting with 0x...
 
-// Configuration
-const PACKAGE_ID = process.env.NEXT_PUBLIC_PACKAGE_ID!;
-const MODULE_NAME = process.env.NEXT_PUBLIC_MODULE!;
-const EVENT_TYPE = `${PACKAGE_ID}::${MODULE_NAME}::ItemListed`;
-
-// Connect to Services
+// 2. Setup Clients
 const client = new SuiClient({ url: getFullnodeUrl("testnet") });
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // <--- MUST use Service Role to write data
-);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function index() {
-  console.log(`🤖 Indexer Running...`);
-  console.log(`👀 Watching: ${EVENT_TYPE}`);
+async function main() {
+  console.log("🚀 Indexer started...");
+  console.log(`Listening for events from package: ${PACKAGE_ID}`);
 
-  while (true) {
-    try {
-      // 1. Fetch the latest events
-      const events = await client.queryEvents({
-        query: { MoveEventType: EVENT_TYPE },
-        limit: 10,
-        order: "descending",
-      });
+  // 3. Subscribe to the "AuctionCreated" event
+  const unsubscribe = await client.subscribeEvent({
+    filter: {
+      MoveModule: {
+        package: PACKAGE_ID,
+        module: "auction",
+      },
+    },
+    onMessage: async (event) => {
+      const type = event.type;
+      const data = event.parsedJson as any;
 
-      // 2. Process each event
-      for (const event of events.data) {
-        const parsed = event.parsedJson as any;
+      // We only care about AuctionCreated for the marketplace feed
+      if (type.includes("::AuctionCreated")) {
+        console.log("📦 New Auction Detected!", data.auction_id);
+        console.log("   Seller:", data.seller);
 
-        // Log what we found
-        console.log(`Found item: ${parsed.object_id}`);
-
-        // 3. Upsert into Supabase (Insert if new, ignore if exists)
-        const { error } = await supabase.from("items").upsert(
-          {
-            sui_object_id: parsed.object_id,
-            seller: parsed.seller,
-            price: Number(parsed.price), // Convert BigInt string to Number
-            blob_id: parsed.blob_id,
-            status: "listed",
-          },
-          { onConflict: "sui_object_id" }
-        ); // Use object_id to prevent duplicates
+        // 4. Save to Supabase
+        const { error } = await supabase.from("auctions").insert({
+          auction_id: data.auction_id,
+          seller: data.seller,
+          image_url: data.image_url,
+          end_time: Number(data.end_time),
+          highest_bid: 0, // Initial bid is 0
+          is_active: true,
+        });
 
         if (error) {
-          console.error("Supabase Error:", error.message);
+          console.error("❌ Error saving to DB:", error.message);
+        } else {
+          console.log("✅ Saved to Supabase successfully!");
         }
       }
+    },
+  });
 
-      // 4. Wait 5 seconds before checking again (Polling)
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-    } catch (e) {
-      console.error("Indexer Error:", e);
-      await new Promise((resolve) => setTimeout(resolve, 5000));
-    }
-  }
+  // Prevent script from exiting
+  process.on("SIGINT", async () => {
+    console.log("Stopping indexer...");
+    await unsubscribe();
+    process.exit();
+  });
 }
 
-index();
+main().catch(console.error);

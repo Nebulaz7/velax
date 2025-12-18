@@ -5,7 +5,7 @@ import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
 } from "@mysten/dapp-kit";
-import { supabase } from "@/utils/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Transaction } from "@mysten/sui/transactions";
 
 export default function Dashboard() {
