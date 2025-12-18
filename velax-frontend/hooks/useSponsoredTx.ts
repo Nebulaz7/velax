@@ -4,13 +4,7 @@ import {
   useSuiClient,
 } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
-import { EnokiClient } from "@mysten/enoki";
 import { fromBase64, toBase64 } from "@mysten/sui/utils";
-
-// Initialize public client for execution only
-const publicEnoki = new EnokiClient({
-  apiKey: process.env.NEXT_PUBLIC_ENOKI_API_KEY!,
-});
 
 export function useSponsoredTx() {
   const client = useSuiClient();
@@ -20,17 +14,12 @@ export function useSponsoredTx() {
   return async (tx: Transaction) => {
     if (!account) throw new Error("No account connected");
 
-    // 1. Set Sender
     tx.setSender(account.address);
-
-    // 2. Build the transaction bytes
     const txBytes = await tx.build({ client, onlyTransactionKind: true });
-
-    // Convert bytes to Base64 string to send over JSON
     const txBytesBase64 = toBase64(txBytes);
 
-    // 3. Call YOUR Backend API to sponsor (Secure Step)
-    const response = await fetch("/api/sponsor", {
+    // 1. Sponsor (Backend)
+    const sponsorRes = await fetch("/api/sponsor", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -38,23 +27,28 @@ export function useSponsoredTx() {
         sender: account.address,
       }),
     });
-
-    const sponsored = await response.json();
-
-    if (!response.ok) {
+    const sponsored = await sponsorRes.json();
+    if (!sponsorRes.ok)
       throw new Error(sponsored.error || "Sponsorship failed");
-    }
 
-    // 4. User Signs the sponsored transaction
-    // 'sponsored.bytes' comes back as Base64 string
+    // 2. Sign (Frontend)
     const { signature } = await signTransaction({
       transaction: Transaction.from(fromBase64(sponsored.bytes)),
     });
 
-    // 5. Execute via Enoki (Public execution is fine)
-    return publicEnoki.executeSponsoredTransaction({
-      digest: sponsored.digest,
-      signature: signature,
+    // 3. Execute (Backend) <--- NEW STEP
+    const executeRes = await fetch("/api/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        digest: sponsored.digest,
+        signature: signature,
+      }),
     });
+
+    const result = await executeRes.json();
+    if (!executeRes.ok) throw new Error(result.error || "Execution failed");
+
+    return result;
   };
 }
