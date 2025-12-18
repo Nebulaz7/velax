@@ -20,6 +20,8 @@ interface AuctionProps {
   image_url: string;
   end_time: number;
   highest_bid: number;
+  name?: string;
+  description?: string;
 }
 
 export function AuctionCard({ auction: data }: { auction: AuctionProps }) {
@@ -78,11 +80,12 @@ export function AuctionCard({ auction: data }: { auction: AuctionProps }) {
 
       {/* Info Section */}
       <CardHeader className="p-4 pb-2">
+        {/* Use data.name, fallback to ID if missing */}
         <h3 className="font-bold text-lg truncate">
-          Velax Item #{data.auction_id.slice(0, 4)}
+          {data.name || `Item #${data.auction_id.slice(0, 4)}`}
         </h3>
         <p className="text-xs text-muted-foreground truncate">
-          Seller: {data.seller}
+          {data.description}
         </p>
       </CardHeader>
 
