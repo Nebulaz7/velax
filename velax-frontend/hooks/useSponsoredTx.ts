@@ -1,8 +1,16 @@
-import { useSignTransaction, useCurrentAccount } from "@mysten/dapp-kit";
-import { useSuiClient } from "@mysten/dapp-kit";
+import {
+  useSignTransaction,
+  useCurrentAccount,
+  useSuiClient,
+} from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
-import { enokiClient } from "@/lib/enoki";
-import { toBase64 } from "@mysten/sui/utils";
+import { EnokiClient } from "@mysten/enoki";
+import { fromBase64, toBase64 } from "@mysten/sui/utils";
+
+// Initialize public client for execution only
+const publicEnoki = new EnokiClient({
+  apiKey: process.env.NEXT_PUBLIC_ENOKI_API_KEY!,
+});
 
 export function useSponsoredTx() {
   const client = useSuiClient();
@@ -12,30 +20,39 @@ export function useSponsoredTx() {
   return async (tx: Transaction) => {
     if (!account) throw new Error("No account connected");
 
-    // 1. Set the sender to the current user
+    // 1. Set Sender
     tx.setSender(account.address);
 
-    // 2. Get the raw bytes
+    // 2. Build the transaction bytes
     const txBytes = await tx.build({ client, onlyTransactionKind: true });
 
-    // 3. Ask Enoki to SPONSOR the transaction (Pay the gas)
-    const sponsored = await enokiClient.createSponsoredTransaction({
-      network: "testnet",
-      transactionKindBytes: toBase64(txBytes), // Convert Uint8Array to Base64 string
-      sender: account.address,
-      allowedMoveCallTargets: [
-        "0x...::auction::create_auction",
-        "0x...::auction::place_bid",
-      ], // Optional security
+    // Convert bytes to Base64 string to send over JSON
+    const txBytesBase64 = toBase64(txBytes);
+
+    // 3. Call YOUR Backend API to sponsor (Secure Step)
+    const response = await fetch("/api/sponsor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        txBytes: txBytesBase64,
+        sender: account.address,
+      }),
     });
 
-    // 4. User SIGNS the transaction (Securely via zkLogin)
+    const sponsored = await response.json();
+
+    if (!response.ok) {
+      throw new Error(sponsored.error || "Sponsorship failed");
+    }
+
+    // 4. User Signs the sponsored transaction
+    // 'sponsored.bytes' comes back as Base64 string
     const { signature } = await signTransaction({
-      transaction: Transaction.from(sponsored.bytes),
+      transaction: Transaction.from(fromBase64(sponsored.bytes)),
     });
 
-    // 5. Execute the transaction via Enoki
-    return enokiClient.executeSponsoredTransaction({
+    // 5. Execute via Enoki (Public execution is fine)
+    return publicEnoki.executeSponsoredTransaction({
       digest: sponsored.digest,
       signature: signature,
     });
