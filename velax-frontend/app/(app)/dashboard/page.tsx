@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const supabase = createClient();
 
   const [myListings, setMyListings] = useState<any[]>([]);
+  const [myWins, setMyWins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [claimingId, setClaimingId] = useState<string | null>(null);
 
@@ -28,14 +29,22 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     if (!account) return;
 
-    // Fetch listings created by me
-    const { data } = await supabase
+    // 1. My Listings
+    const { data: listings } = await supabase
       .from("auctions")
       .select("*")
       .eq("seller", account.address)
       .order("created_at", { ascending: false });
 
-    setMyListings(data || []);
+    // 2. My Wins (Auctions where I am the high bidder AND it has ended)
+    const { data: wins } = await supabase
+      .from("auctions")
+      .select("*")
+      .eq("highest_bidder", account.address)
+      .order("created_at", { ascending: false });
+
+    setMyListings(listings || []);
+    setMyWins(wins || []);
     setLoading(false);
   };
 
@@ -48,7 +57,6 @@ export default function DashboardPage() {
       // Call 'end_auction' to distribute funds/NFT
       tx.moveCall({
         target: `${PACKAGE_ID}::${AUCTION_MODULE}::end_auction`,
-        // ...existing code...
         arguments: [
           tx.object(auction.auction_id),
           tx.object("0x6"), // Clock
@@ -58,7 +66,7 @@ export default function DashboardPage() {
       const res = await executeSponsored(tx);
       console.log("Claim Digest:", res.digest);
 
-      toast.success("Funds Claimed! 💰", {
+      toast.success("Claimed Successfully! 🎉", {
         description: "The auction is settled. Check your wallet.",
       });
 
@@ -73,7 +81,6 @@ export default function DashboardPage() {
       setClaimingId(null);
     }
   };
-  // ...existing code...
 
   if (!account) {
     return (
@@ -93,9 +100,10 @@ export default function DashboardPage() {
       <Tabs defaultValue="listings">
         <TabsList>
           <TabsTrigger value="listings">My Listings</TabsTrigger>
-          <TabsTrigger value="wins">My Wins (Coming Soon)</TabsTrigger>
+          <TabsTrigger value="wins">My Wins</TabsTrigger>
         </TabsList>
 
+        {/* TAB 1: LISTINGS */}
         <TabsContent value="listings" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {loading ? (
@@ -163,6 +171,72 @@ export default function DashboardPage() {
             {!loading && myListings.length === 0 && (
               <p className="text-muted-foreground col-span-3 text-center py-10">
                 You haven't listed any auctions yet.
+              </p>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* TAB 2: MY WINS */}
+        <TabsContent value="wins" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {loading ? (
+              <Loader2 className="animate-spin mx-auto" />
+            ) : (
+              myWins.map((item) => {
+                const isEnded = Date.now() > item.end_time;
+                return (
+                  <Card
+                    key={item.id}
+                    className="border-green-200 dark:border-green-900 bg-green-50/10"
+                  >
+                    <div className="aspect-video w-full bg-slate-100 relative">
+                      <img
+                        src={item.image_url}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 text-xs font-bold rounded">
+                        YOU ARE WINNING
+                      </div>
+                    </div>
+                    <CardHeader className="p-4">
+                      <CardTitle className="truncate text-lg">
+                        {item.name || "Item"}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Your Bid:</span>
+                        <span className="font-bold text-green-600">
+                          {(item.highest_bid / 1e9).toFixed(2)} SUI
+                        </span>
+                      </div>
+
+                      {isEnded ? (
+                        <Button
+                          className="w-full bg-blue-600 hover:bg-blue-700"
+                          onClick={() => handleClaim(item)}
+                          disabled={!!claimingId}
+                        >
+                          {claimingId === item.auction_id ? (
+                            <Loader2 className="animate-spin" />
+                          ) : (
+                            "Claim NFT Prize 🎁"
+                          )}
+                        </Button>
+                      ) : (
+                        <Button variant="outline" className="w-full" disabled>
+                          Wait for End...
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+
+            {!loading && myWins.length === 0 && (
+              <p className="text-muted-foreground col-span-3 text-center py-10">
+                You haven't bid on anything yet.
               </p>
             )}
           </div>

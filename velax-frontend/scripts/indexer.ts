@@ -80,7 +80,7 @@ async function runIndexer() {
         else console.log(`✅ Indexed: ${data.auction_id}`);
       }
 
-      // 2. Process Bids (Keep this logic)
+      // 2. Process Bids
       const bidEvents = await client.queryEvents({
         query: { MoveEventType: `${PACKAGE_ID}::auction::BidPlaced` },
         cursor: bidCursor,
@@ -93,12 +93,21 @@ async function runIndexer() {
           eventSeq: event.id.eventSeq,
         };
         const data = event.parsedJson as any;
-        console.log(`💰 Bid: ${data.amount}`);
 
-        await supabase
+        console.log(
+          `💰 Bid by ${data.bidder} on ${data.auction_id}: ${data.amount}`
+        );
+
+        // Update Price AND Bidder
+        const { error } = await supabase
           .from("auctions")
-          .update({ highest_bid: Number(data.amount) })
+          .update({
+            highest_bid: Number(data.amount),
+            highest_bidder: data.bidder, // <--- CAPTURE THE WINNER
+          })
           .eq("auction_id", data.auction_id);
+
+        if (error) console.error("   ❌ DB Error:", error.message);
       }
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
