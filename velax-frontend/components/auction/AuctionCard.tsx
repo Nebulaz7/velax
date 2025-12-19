@@ -4,14 +4,7 @@ import { useState } from "react";
 import { useSponsoredTx } from "@/hooks/useSponsoredTx";
 import { useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,9 +16,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Timer, Gavel, Loader2, RefreshCcw } from "lucide-react";
+import { Timer, Gavel, Loader2, Coins, Zap } from "lucide-react";
 import { PACKAGE_ID, AUCTION_MODULE } from "@/utils/constants";
 import { toast } from "sonner";
+import { Countdown } from "@/components/ui/countdown";
 
 interface AuctionProps {
   auction_id: string;
@@ -121,113 +115,165 @@ export function AuctionCard({ auction: data }: { auction: AuctionProps }) {
   const isEnded = Date.now() > data.end_time;
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border-slate-200 dark:border-slate-800">
-      {/* Image & Header (Same as before) */}
-      <div className="relative aspect-square w-full bg-slate-100 dark:bg-slate-900 group">
+    <div className="group bg-white dark:bg-black border-2 border-black dark:border-white rounded-2xl overflow-hidden shadow-[4px_4px_0px_0px_#000] dark:shadow-[4px_4px_0px_0px_#fff] hover:shadow-[6px_6px_0px_0px_#000] dark:hover:shadow-[6px_6px_0px_0px_#fff] hover:translate-x-[-2px] hover:translate-y-[-2px] transition-all duration-200">
+      {/* Image */}
+      <div className="relative aspect-square w-full bg-gray-100 dark:bg-gray-900 overflow-hidden border-b-2 border-black dark:border-white">
         <img
           src={data.image_url}
           alt={data.name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        <Badge className="absolute top-2 right-2 bg-black/60 backdrop-blur text-white border-0">
-          <Timer size={14} className="mr-1" />
-          {new Date(data.end_time).toLocaleDateString()}
-        </Badge>
+        {/* Time Badge */}
+        <div className="absolute top-3 right-3 bg-black dark:bg-white text-white dark:text-black px-3 py-1.5 rounded-full border-2 border-white dark:border-black font-bold text-sm flex items-center gap-2 shadow-[2px_2px_0px_0px_#fff] dark:shadow-[2px_2px_0px_0px_#000]">
+          <Timer size={14} />
+          <Countdown targetDate={data.end_time} />
+        </div>
+        {/* Status Badge */}
+        {isEnded && (
+          <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1.5 rounded-full border-2 border-black font-bold text-sm shadow-[2px_2px_0px_0px_#000]">
+            Ended
+          </div>
+        )}
       </div>
 
-      <CardHeader className="p-4 pb-2">
-        <h3 className="font-bold text-lg truncate" title={data.name}>
+      {/* Content */}
+      <div className="p-4">
+        <h3
+          className="font-black text-xl text-black dark:text-white truncate mb-1"
+          title={data.name}
+        >
           {data.name || `Item #${data.auction_id.slice(0, 4)}`}
         </h3>
-        <p className="text-xs text-muted-foreground truncate">
+        <p className="text-sm text-black/60 dark:text-white/60 font-medium truncate mb-4">
           {data.description || "No description"}
         </p>
-      </CardHeader>
 
-      <CardContent className="p-4 pt-2">
-        <div className="flex justify-between items-end bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg">
-          <div>
-            <p className="text-xs text-muted-foreground font-semibold uppercase">
-              Current Bid
-            </p>
-            <p className="text-xl font-bold text-blue-600">
-              {currentBidSUI.toFixed(2)} SUI
-            </p>
+        {/* Current Bid Box */}
+        <div className="bg-blue-100 dark:bg-blue-900/30 border-2 border-black dark:border-white rounded-xl p-4 mb-4 shadow-[2px_2px_0px_0px_#000] dark:shadow-[2px_2px_0px_0px_#fff]">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-black/60 dark:text-white/60 uppercase tracking-wide">
+                Current Bid
+              </p>
+              <p className="text-2xl font-black text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                <Coins className="h-5 w-5" />
+                {currentBidSUI.toFixed(2)} SUI
+              </p>
+            </div>
+            <div className="p-2 bg-yellow-300 rounded-xl border-2 border-black">
+              <Zap className="h-5 w-5 text-black" />
+            </div>
           </div>
         </div>
-      </CardContent>
 
-      <CardFooter className="p-4 pt-0">
-        {/* --- MODAL TRIGGER --- */}
+        {/* Bid Button */}
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button
               disabled={isEnded}
-              className={`w-full font-bold gap-2 ${
-                isEnded ? "bg-slate-400" : "bg-blue-600 hover:bg-blue-700"
+              className={`w-full h-12 font-black text-base border-2 border-black dark:border-white rounded-xl transition-all ${
+                isEnded
+                  ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                  : "bg-blue-500 hover:bg-blue-600 text-white shadow-[3px_3px_0px_0px_#000] dark:shadow-[3px_3px_0px_0px_#fff] hover:shadow-[1px_1px_0px_0px_#000] dark:hover:shadow-[1px_1px_0px_0px_#fff] hover:translate-x-[2px] hover:translate-y-[2px]"
               }`}
             >
               {isEnded ? (
                 "Auction Ended"
               ) : (
                 <>
-                  <Gavel size={16} /> Place Bid
+                  <Gavel size={18} className="mr-2" /> Place Bid
                 </>
               )}
             </Button>
           </DialogTrigger>
 
-          {/* --- MODAL CONTENT --- */}
-          <DialogContent className="sm:max-w-md">
+          {/* Modal Content */}
+          <DialogContent className="sm:max-w-md border-4 border-black dark:border-white rounded-2xl shadow-[8px_8px_0px_0px_#000] dark:shadow-[8px_8px_0px_0px_#fff] bg-white dark:bg-black">
             <DialogHeader>
-              <DialogTitle>Place a Bid</DialogTitle>
-              <DialogDescription>
-                You are bidding on <strong>{data.name}</strong>. Refunds are
-                instant if you are outbid.
+              <DialogTitle className="text-2xl font-black text-black dark:text-white">
+                Place a Bid
+              </DialogTitle>
+              <DialogDescription className="text-black/60 dark:text-white/60 font-medium">
+                You are bidding on{" "}
+                <strong className="text-black dark:text-white">
+                  {data.name}
+                </strong>
+                . Refunds are instant if you are outbid.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Your Bid Amount (SUI)</Label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    value={bidAmount}
-                    onChange={(e) => setBidAmount(e.target.value)}
-                    step="0.1"
-                    min={minBidSUI}
-                    className="pl-8 font-mono text-lg"
-                  />
-                  <span className="absolute left-3 top-2.5 text-muted-foreground">
-                    $
-                  </span>
+              {/* Item Preview */}
+              <div className="flex items-center gap-4 p-3 bg-gray-100 dark:bg-gray-900 border-2 border-black dark:border-white rounded-xl">
+                <img
+                  src={data.image_url}
+                  alt={data.name}
+                  className="w-16 h-16 object-cover rounded-lg border-2 border-black dark:border-white"
+                />
+                <div>
+                  <p className="font-bold text-black dark:text-white">
+                    {data.name}
+                  </p>
+                  <p className="text-sm text-black/60 dark:text-white/60">
+                    Current: {currentBidSUI.toFixed(2)} SUI
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground text-right">
+              </div>
+
+              {/* Bid Input */}
+              <div className="space-y-2">
+                <Label className="font-bold text-black dark:text-white">
+                  Your Bid Amount (SUI)
+                </Label>
+                <Input
+                  type="number"
+                  value={bidAmount}
+                  onChange={(e) => setBidAmount(e.target.value)}
+                  step="0.1"
+                  min={minBidSUI}
+                  className="h-14 text-xl font-bold border-2 border-black dark:border-white rounded-xl shadow-[3px_3px_0px_0px_#000] dark:shadow-[3px_3px_0px_0px_#fff] bg-yellow-100 dark:bg-yellow-900/30"
+                />
+                <p className="text-sm font-bold text-black/60 dark:text-white/60">
                   Minimum required: {minBidSUI.toFixed(2)} SUI
+                </p>
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-green-100 dark:bg-green-900/30 border-2 border-black dark:border-white rounded-xl p-3">
+                <p className="text-sm font-bold text-black/70 dark:text-white/70">
+                  ⚡{" "}
+                  <span className="text-green-600 dark:text-green-400">
+                    Instant Refund:
+                  </span>{" "}
+                  If someone outbids you, your SUI is returned automatically!
                 </p>
               </div>
             </div>
 
-            <DialogFooter className="flex-col sm:justify-between gap-2">
-              <Button variant="outline" onClick={() => setIsOpen(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setIsOpen(false)}
+                className="font-bold border-2 border-black dark:border-white rounded-xl shadow-[2px_2px_0px_0px_#000] dark:shadow-[2px_2px_0px_0px_#fff] hover:shadow-[1px_1px_0px_0px_#000] dark:hover:shadow-[1px_1px_0px_0px_#fff] hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
+              >
                 Cancel
               </Button>
               <Button
                 onClick={handleBid}
                 disabled={loading}
-                className="bg-blue-600 font-bold w-full sm:w-auto"
+                className="font-black bg-blue-500 hover:bg-blue-600 text-white border-2 border-black dark:border-white rounded-xl shadow-[3px_3px_0px_0px_#000] dark:shadow-[3px_3px_0px_0px_#fff] hover:shadow-[1px_1px_0px_0px_#000] dark:hover:shadow-[1px_1px_0px_0px_#fff] hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex-1"
               >
                 {loading ? (
                   <Loader2 className="animate-spin mr-2" />
                 ) : (
-                  "Confirm Bid"
+                  <Gavel className="mr-2 h-4 w-4" />
                 )}
+                Confirm Bid
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }
