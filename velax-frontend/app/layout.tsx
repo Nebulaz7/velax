@@ -21,9 +21,7 @@ export default function RootLayout({
         <Providers>
           <div className="min-h-screen flex flex-col bg-white dark:bg-slate-950">
             <Navbar />
-            <main className="flex-1 container mx-auto py-8 px-4">
-              {children}
-            </main>
+            <main className="flex-1 container">{children}</main>
           </div>
           <Toaster />
         </Providers>
