@@ -40,9 +40,21 @@ A custom-built off-chain indexer listens to Sui blockchain events in real-time, 
 
 ## 🏗️ Architecture
 
+```mermaid
+graph TD
+    User[User - Google Login] -->|Interacts| UI[Next.js Frontend]
+    UI -->|Sponsors Tx| Enoki[Enoki Gas Station]
+    Enoki -->|Executes Move Call| Chain[Sui Blockchain]
+    Chain -->|Emits Events| Indexer[Node.js Indexer]
+    Indexer -->|Upserts Data| DB[(Supabase)]
+    UI -->|Reads Data| DB
+```
+
+### System Overview
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    User  (Login)                          │
+│                    User (Google Login)                          │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -57,7 +69,7 @@ A custom-built off-chain indexer listens to Sui blockchain events in real-time, 
                     ▼                           ▼
 ┌───────────────────────────────┐   ┌─────────────────────────────┐
 │      Enoki Gas Station        │   │     Supabase Database       │
-│  • zkLogin (Google Auth)     │   │  • PostgreSQL               │
+│  • zkLogin (Google Auth)      │   │  • PostgreSQL               │
 │  • Sponsored Transactions     │   │  • Real-time Subscriptions  │
 │  • No wallet required         │   │  • Indexed Auction Data     │
 └───────────────────────────────┘   └─────────────────────────────┘
@@ -80,7 +92,7 @@ A custom-built off-chain indexer listens to Sui blockchain events in real-time, 
 ### Data Flow
 
 ```
-User Login (Google or connect wallet) → zkLogin via Enoki → Ephemeral Keypair Generated
+User Login (Google) → zkLogin via Enoki → Ephemeral Keypair Generated
          │
          ▼
 User Bids on Auction → Frontend builds TX → Enoki sponsors gas
@@ -99,42 +111,23 @@ Frontend reads Supabase → UI updates in real-time
 
 ## 🛠️ Tech Stack
 
-### Frontend
-
-| Technology        | Purpose                         |
-| ----------------- | ------------------------------- |
-| **Next.js 15**    | React framework with App Router |
-| **TypeScript**    | Type-safe development           |
-| **Tailwind CSS**  | Utility-first styling           |
-| **shadcn/ui**     | Accessible UI components        |
-| **Framer Motion** | Animations and transitions      |
-| **Lucide React**  | Icon library                    |
-
-### Blockchain & Auth
-
-| Technology            | Purpose                          |
-| --------------------- | -------------------------------- |
-| **Sui (Testnet)**     | Layer 1 blockchain               |
-| **Move Language**     | Smart contract development       |
-| **Enoki (zkLogin)**   | Google authentication, no wallet |
-| **Enoki Gas Station** | Sponsored/gasless transactions   |
-| **@mysten/sui**       | Sui TypeScript SDK               |
-| **@mysten/enoki**     | Enoki integration                |
-
-### Backend & Database
-
-| Technology          | Purpose                                |
-| ------------------- | -------------------------------------- |
-| **Supabase**        | PostgreSQL database, real-time updates |
-| **Node.js Indexer** | Blockchain event listener              |
-| **Railway**         | Indexer hosting                        |
+| Category           | Technology                                      |
+| ------------------ | ----------------------------------------------- |
+| **Blockchain**     | Sui (Testnet)                                   |
+| **Smart Contract** | Sui Move                                        |
+| **Frontend**       | Next.js 15, TypeScript, Tailwind CSS, shadcn/ui |
+| **Auth & Gas**     | Mysten Labs Enoki (zkLogin + Sponsored Tx)      |
+| **Indexer**        | Custom TypeScript (Poller), hosted on Railway   |
+| **Database**       | Supabase (PostgreSQL)                           |
+| **Animations**     | Framer Motion                                   |
+| **Icons**          | Lucide React                                    |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-CampusTrade/
+velax/
 ├── velax-frontend/              # Next.js frontend application
 │   ├── app/                     # App Router pages
 │   │   ├── market/             # NFT auction marketplace
@@ -149,6 +142,8 @@ CampusTrade/
 │   │   ├── supabase/           # Supabase client config
 │   │   ├── enoki/              # Enoki/zkLogin setup
 │   │   └── utils.ts            # Helper functions
+│   ├── scripts/
+│   │   └── indexer.ts          # Blockchain event indexer
 │   └── public/                 # Static assets
 │
 ├── velax-contract/             # Sui Move smart contracts
@@ -156,131 +151,89 @@ CampusTrade/
 │   │   └── auction.move        # Atomic refund auction logic
 │   └── Move.toml               # Move package config
 │
-├── velax-indexer/              # Blockchain event indexer
-│   ├── src/
-│   │   └── index.ts            # Event polling & DB sync
-│   └── package.json
-│
 └── README.md
 ```
 
 ---
 
-## 🚀 Getting Started
+## ⚙️ Setting Up Locally
+
+Follow these steps to run the full stack (Frontend + Indexer) on your machine.
 
 ### Prerequisites
 
-- Node.js 18.17+
-- npm or yarn
+- Node.js 18+
+- npm or pnpm
 - Google account (for zkLogin)
 - Sui CLI (for contract deployment)
 
-### Frontend Setup
+### 1. Clone the Repo
 
-1. **Clone the repository**
+```bash
+git clone https://github.com/your-username/velax.git
+cd velax
+npm install
+```
 
-   ```bash
-   git clone https://github.com/yourusername/CampusTrade.git
-   cd CampusTrade/velax-frontend
-   ```
+### 2. Environment Variables
 
-2. **Install dependencies**
+Create a `.env.local` file in the root directory:
 
-   ```bash
-   npm install
-   ```
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+# Use Service Role for Indexer (Keep secret!)
+SUPABASE_SERVICE_KEY=your_service_role_key
 
-3. **Set up environment variables**
+# Enoki (Mysten Labs)
+NEXT_PUBLIC_ENOKI_API_KEY=your_public_enoki_key
+ENOKI_SECRET_KEY=your_secret_enoki_key
 
-   ```bash
-   cp .env.example .env.local
-   ```
+# Sui Contract
+NEXT_PUBLIC_PACKAGE_ID=0xd1c395da20567fff79185d374be6d5d3f41fed6f4f0bb874c5ea198d803cd84c
+NEXT_PUBLIC_SUI_NETWORK=testnet
 
-   ```env
-   # Supabase
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+# Google OAuth
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
+```
 
-   # Sui
-   NEXT_PUBLIC_SUI_NETWORK=testnet
-   NEXT_PUBLIC_PACKAGE_ID=your_deployed_package_id
+### 3. Run the Indexer
 
-   # Enoki
-   NEXT_PUBLIC_ENOKI_API_KEY=your_enoki_api_key
-   NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
-   ```
+The indexer listens for on-chain events and populates Supabase. Open a terminal:
 
-4. **Run the development server**
+```bash
+# This will start the polling script
+npx tsx scripts/indexer.ts
+```
 
-   ```bash
-   npm run dev
-   ```
+### 4. Run the Frontend
 
-5. Open [http://localhost:3000](http://localhost:3000)
+Open a second terminal:
 
-### Smart Contract Deployment
+```bash
+npm run dev
+```
 
-1. **Install Sui CLI**
-
-   ```bash
-   cargo install --locked --git https://github.com/MystenLabs/sui.git sui
-   ```
-
-2. **Build the contract**
-
-   ```bash
-   cd velax-contract
-   sui move build
-   ```
-
-3. **Deploy to testnet**
-
-   ```bash
-   sui client publish --gas-budget 100000000
-   ```
-
-4. **Save the Package ID** to your `.env.local`
-
-### Indexer Setup
-
-1. **Navigate to indexer**
-
-   ```bash
-   cd velax-indexer
-   npm install
-   ```
-
-2. **Configure environment**
-
-   ```env
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_SERVICE_KEY=your_service_key
-   SUI_RPC_URL=https://fullnode.testnet.sui.io
-   PACKAGE_ID=your_package_id
-   ```
-
-3. **Run the indexer**
-
-   ```bash
-   npm start
-   ```
+Visit [http://localhost:3000](http://localhost:3000) to see the app.
 
 ---
 
-## 🔧 Environment Variables
+## 📜 Smart Contract Details
 
-| Variable                        | Description                   |
-| ------------------------------- | ----------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase project URL          |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key        |
-| `NEXT_PUBLIC_SUI_NETWORK`       | Sui network (testnet/mainnet) |
-| `NEXT_PUBLIC_PACKAGE_ID`        | Deployed Move package ID      |
-| `NEXT_PUBLIC_ENOKI_API_KEY`     | Enoki API key for zkLogin     |
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID`  | Google OAuth client ID        |
+The smart contract is deployed on **Sui Testnet**.
 
----
+**Package ID:** `0xd1c395da20567fff79185d374be6d5d3f41fed6f4f0bb874c5ea198d803cd84c`
 
-## 💡 How Atomic Refunds Work
+### Modules
+
+| Function                  | Description                                                             |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `auction::create_auction` | Mints a wrapped object and starts the timer                             |
+| `auction::place_bid`      | Accepts payment, checks balance, and refunds previous bidder atomically |
+| `auction::end_auction`    | Transfers the NFT to the winner and funds to the seller                 |
+
+### How Atomic Refunds Work
 
 ```move
 // Simplified Move logic
@@ -301,6 +254,37 @@ public entry fun place_bid(auction: &mut Auction, payment: Coin<SUI>, ctx: &mut 
     auction.highest_bidder = option::some(bidder);
 }
 ```
+
+---
+
+## 🧪 How to Test (Demo Flow)
+
+1. **Login:** Use the "Connect Wallet" button to sign in with Google.
+
+2. **Faucet:** Since it's Testnet, ensure your address has SUI (or transfer some from a Sui Wallet).
+
+3. **Create:** Go to `/create` and list an item (e.g., duration 1 hour).
+
+4. **Bid:** Go to `/market` and place a bid.
+
+5. **Refund:** Open an Incognito window, login as a different user, and place a higher bid. Watch the first user get refunded instantly!
+
+6. **Claim:** When the auction ends, go to `/dashboard` to claim your funds (as seller) or NFT (as winner).
+
+---
+
+## 🔧 Environment Variables Reference
+
+| Variable                        | Description                        |
+| ------------------------------- | ---------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase project URL               |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key             |
+| `SUPABASE_SERVICE_KEY`          | Supabase service role key (secret) |
+| `NEXT_PUBLIC_SUI_NETWORK`       | Sui network (testnet/mainnet)      |
+| `NEXT_PUBLIC_PACKAGE_ID`        | Deployed Move package ID           |
+| `NEXT_PUBLIC_ENOKI_API_KEY`     | Enoki public API key               |
+| `ENOKI_SECRET_KEY`              | Enoki secret key (server-side)     |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID`  | Google OAuth client ID             |
 
 ---
 
@@ -328,7 +312,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Team
 
-Built with ❤️ for **Sui Hackathon 2025**
+**[Your Name]** - Full Stack Developer & Smart Contract Engineer
+
+Built with ❤️ for the **Sui Ecosystem** and **Sui Hackathon 2025**
 
 ---
 
