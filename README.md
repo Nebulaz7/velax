@@ -8,7 +8,7 @@
 
 ## 📅 The 5-Day Sprint Plan
 
-### **Day 0: Setup & Configuration**
+### **Day 0: Setup & Configuration
 
 **Goal:** Initialize all frameworks and connect the plumbing.
 
@@ -49,7 +49,7 @@
 
 ---
 
-### **Day 2: Walrus Storage & Supabase Indexer**
+### **Day 2: Walrus Storage & Supabase Indexer*
 
 **Goal:** Handle data storage without a heavy backend.
 
@@ -121,7 +121,7 @@
 - Lucide React (Icons)
 - React Query
 
-**Blockchain:**
+**Blockchain:
 
 - Sui Move (Smart Contracts)
 - Walrus (Decentralized Storage)
