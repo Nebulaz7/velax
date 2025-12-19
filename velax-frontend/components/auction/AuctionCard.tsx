@@ -16,7 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Timer, Gavel, Loader2, Coins, Zap } from "lucide-react";
+import { Timer, Gavel, Loader2, Coins, Zap, ExternalLink } from "lucide-react";
 import { PACKAGE_ID, AUCTION_MODULE } from "@/utils/constants";
 import { toast } from "sonner";
 import { Countdown } from "@/components/ui/countdown";
@@ -95,8 +95,17 @@ export function AuctionCard({ auction: data }: { auction: AuctionProps }) {
       // 4. Execute
       const res = await executeSponsored(tx);
 
-      toast.success("Bid Placed! 🚀", {
-        description: `You bid ${bidValue} SUI`,
+      toast.success("Bid Placed Successfully! 🎉", {
+        description: (
+          <a
+            href={`https://suiscan.xyz/testnet/tx/${res.digest}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline text-blue-500 flex items-center gap-1 mt-1"
+          >
+            View on SuiScan <ExternalLink className="h-3 w-3" />
+          </a>
+        ),
       });
       console.log("Digest:", res.digest);
 
