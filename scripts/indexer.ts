@@ -1,12 +1,14 @@
 import { SuiClient } from "@mysten/sui/client";
 import { createClient } from "@supabase/supabase-js";
+import { config } from "dotenv";
+
+// Load environment variables
+config();
 
 // --- CONFIG ---
-const SUPABASE_URL = "https://urqzczkgwrmzcuxiomez.supabase.co";
-const SUPABASE_SERVICE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycXpjemtnd3JtemN1eGlvbWV6Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NjAyMTI2MiwiZXhwIjoyMDgxNTk3MjYyfQ.7Z7eG2iIa0W26V9RMHr8J8iWwD6jeELK1avSP16DEQs";
-const PACKAGE_ID =
-  "0xd1c395da20567fff79185d374be6d5d3f41fed6f4f0bb874c5ea198d803cd84c";
+const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY!;
+const PACKAGE_ID = process.env.PACKAGE_ID!;
 
 const client = new SuiClient({ url: "https://fullnode.testnet.sui.io:443" });
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
