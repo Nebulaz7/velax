@@ -12,9 +12,20 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Timer, Gavel, Loader2, RefreshCcw } from "lucide-react";
 import { PACKAGE_ID, AUCTION_MODULE } from "@/utils/constants";
-import { toast } from "sonner"; // Changed from default import to named import
+import { toast } from "sonner";
 
 interface AuctionProps {
   auction_id: string;
@@ -30,70 +41,77 @@ export function AuctionCard({ auction: data }: { auction: AuctionProps }) {
   const executeSponsored = useSponsoredTx();
   const client = useSuiClient();
   const account = useCurrentAccount();
-  const [loading, setLoading] = useState(false);
 
-  // 1. Calculate Minimum Bid (Current + 0.1 SUI)
-  const minBidMist = BigInt(data.highest_bid) + BigInt(100_000_000); // +0.1 SUI
-  const displayPrice = Number(data.highest_bid) / 1_000_000_000;
+  const [loading, setLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false); // Controls the modal
+
+  // Math: Calculate Minimum Bid (Current + 0.1 SUI)
+  const currentBidSUI = Number(data.highest_bid) / 1_000_000_000;
+  const minBidSUI = currentBidSUI + 0.1;
+
+  // State for the user's input (Initialize with min bid)
+  const [bidAmount, setBidAmount] = useState<string>(minBidSUI.toString());
 
   const handleBid = async () => {
     if (!account) return alert("Please connect wallet first");
+
+    // VALIDATION: Ensure bid is high enough
+    const bidValue = parseFloat(bidAmount);
+    if (isNaN(bidValue) || bidValue < minBidSUI) {
+      toast.error(`Minimum bid is ${minBidSUI} SUI`, {
+        description: "Bid too low",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const tx = new Transaction();
 
-      // 2. Find a suitable coin to pay with
-      // We cannot use tx.gas because that is the Sponsor's coin!
+      // Convert User Input to MIST
+      const bidAmountMist = BigInt(Math.floor(bidValue * 1_000_000_000));
+
+      // 1. Find User's Coin
       const { data: coins } = await client.getCoins({
         owner: account.address,
         coinType: "0x2::sui::SUI",
       });
 
-      // Simple strategy: Find the first coin with enough balance
-      // (In production, you'd merge coins here if needed)
-      const paymentCoin = coins.find((c) => BigInt(c.balance) >= minBidMist);
+      // Find coin with enough balance
+      const paymentCoin = coins.find((c) => BigInt(c.balance) >= bidAmountMist);
 
       if (!paymentCoin) {
         throw new Error(
-          `Insufficient Balance. You need ${(Number(minBidMist) / 1e9).toFixed(
-            2
-          )} SUI in a single coin.`
+          `Insufficient Balance. You need ${bidValue} SUI in a single coin.`
         );
       }
 
-      // 3. Add the user's coin to the transaction
-      // We perform a "Split" on this specific coin object
+      // 2. Split Coin
       const [bidPayment] = tx.splitCoins(tx.object(paymentCoin.coinObjectId), [
-        tx.pure.u64(minBidMist),
+        tx.pure.u64(bidAmountMist),
       ]);
 
-      // 4. Call the Move Contract
+      // 3. Move Call
       tx.moveCall({
         target: `${PACKAGE_ID}::${AUCTION_MODULE}::place_bid`,
-        arguments: [
-          tx.object(data.auction_id), // The Auction
-          bidPayment, // The Money (Split from user's coin)
-          tx.object("0x6"), // The Clock
-        ],
+        arguments: [tx.object(data.auction_id), bidPayment, tx.object("0x6")],
       });
 
-      // 5. Execute Gasless
+      // 4. Execute
       const res = await executeSponsored(tx);
 
-      toast.success(`Bid Placed! 🚀 You are now winning: ${data.name}`, {
-        position: "top-center",
-        duration: 3000,
+      toast.success("Bid Placed! 🚀", {
+        description: `You bid ${bidValue} SUI`,
       });
-      console.log("Bid Digest:", res.digest);
+      console.log("Digest:", res.digest);
 
-      // Reload page after a delay to show new price
-      setTimeout(() => window.location.reload(), 2000);
+      setIsOpen(false); // Close modal
+      setTimeout(() => window.location.reload(), 2000); // Refresh
     } catch (err: any) {
       console.error("Bid Failed:", err);
-      toast.error(err.message || "Unknown error", {
-        position: "top-center",
-        duration: 3000,
+      toast.error("Error", {
+        description: err.message,
       });
     } finally {
       setLoading(false);
@@ -104,6 +122,7 @@ export function AuctionCard({ auction: data }: { auction: AuctionProps }) {
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 border-slate-200 dark:border-slate-800">
+      {/* Image & Header (Same as before) */}
       <div className="relative aspect-square w-full bg-slate-100 dark:bg-slate-900 group">
         <img
           src={data.image_url}
@@ -117,19 +136,12 @@ export function AuctionCard({ auction: data }: { auction: AuctionProps }) {
       </div>
 
       <CardHeader className="p-4 pb-2">
-        <div className="flex justify-between items-start">
-          <div className="w-full">
-            <h3
-              className="font-bold text-lg truncate w-full"
-              title={data.name || "Item"}
-            >
-              {data.name || `Item #${data.auction_id.slice(0, 4)}`}
-            </h3>
-            <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-              {data.description || "No description"}
-            </p>
-          </div>
-        </div>
+        <h3 className="font-bold text-lg truncate" title={data.name}>
+          {data.name || `Item #${data.auction_id.slice(0, 4)}`}
+        </h3>
+        <p className="text-xs text-muted-foreground truncate">
+          {data.description || "No description"}
+        </p>
       </CardHeader>
 
       <CardContent className="p-4 pt-2">
@@ -139,37 +151,82 @@ export function AuctionCard({ auction: data }: { auction: AuctionProps }) {
               Current Bid
             </p>
             <p className="text-xl font-bold text-blue-600">
-              {displayPrice.toFixed(2)} SUI
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] text-muted-foreground">Min Bid</p>
-            <p className="text-sm font-medium">
-              {(Number(minBidMist) / 1e9).toFixed(2)} SUI
+              {currentBidSUI.toFixed(2)} SUI
             </p>
           </div>
         </div>
       </CardContent>
 
       <CardFooter className="p-4 pt-0">
-        <Button
-          onClick={handleBid}
-          disabled={loading || isEnded}
-          className={`w-full font-bold gap-2 ${
-            isEnded ? "bg-slate-400" : "bg-blue-600 hover:bg-blue-700"
-          }`}
-        >
-          {loading ? (
-            <Loader2 className="animate-spin" size={16} />
-          ) : isEnded ? (
-            "Auction Ended"
-          ) : (
-            <>
-              <Gavel size={16} />
-              Place Bid
-            </>
-          )}
-        </Button>
+        {/* --- MODAL TRIGGER --- */}
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+          <DialogTrigger asChild>
+            <Button
+              disabled={isEnded}
+              className={`w-full font-bold gap-2 ${
+                isEnded ? "bg-slate-400" : "bg-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              {isEnded ? (
+                "Auction Ended"
+              ) : (
+                <>
+                  <Gavel size={16} /> Place Bid
+                </>
+              )}
+            </Button>
+          </DialogTrigger>
+
+          {/* --- MODAL CONTENT --- */}
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Place a Bid</DialogTitle>
+              <DialogDescription>
+                You are bidding on <strong>{data.name}</strong>. Refunds are
+                instant if you are outbid.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Your Bid Amount (SUI)</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    value={bidAmount}
+                    onChange={(e) => setBidAmount(e.target.value)}
+                    step="0.1"
+                    min={minBidSUI}
+                    className="pl-8 font-mono text-lg"
+                  />
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">
+                    $
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground text-right">
+                  Minimum required: {minBidSUI.toFixed(2)} SUI
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter className="flex-col sm:justify-between gap-2">
+              <Button variant="outline" onClick={() => setIsOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleBid}
+                disabled={loading}
+                className="bg-blue-600 font-bold w-full sm:w-auto"
+              >
+                {loading ? (
+                  <Loader2 className="animate-spin mr-2" />
+                ) : (
+                  "Confirm Bid"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardFooter>
     </Card>
   );
