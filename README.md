@@ -8,7 +8,7 @@
 
 ## 📅 The 5-Day Sprint Plan
 
-### **Day 0: Setup & Configuration**
+### **Day 0: Setup & Configuration
 
 **Goal:** Initialize all frameworks and connect the plumbing.
 
