@@ -133,7 +133,7 @@ export function AuctionCard({ auction: data }: { auction: AuctionProps }) {
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         {/* Time Badge */}
-        <div className="absolute top-3 right-3 bg-black dark:bg-white text-white dark:text-black px-3 py-1.5 rounded-full border-2 border-white dark:border-black font-bold text-sm flex items-center gap-2 shadow-[2px_2px_0px_0px_#fff] dark:shadow-[2px_2px_0px_0px_#000]">
+        <div className="absolute top-3 right-3 bg-black dark:bg-white text-white px-3 py-1.5 rounded-full border-2 border-white dark:border-black font-bold text-sm flex items-center gap-2 shadow-[2px_2px_0px_0px_#fff] dark:shadow-[2px_2px_0px_0px_#000]">
           <Timer size={14} />
           <Countdown targetDate={data.end_time} />
         </div>

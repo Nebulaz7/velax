@@ -27,7 +27,7 @@ export function Countdown({ targetDate }: { targetDate: number }) {
   return (
     <span
       className={`font-mono font-bold ${
-        isUrgent ? "text-red-500 animate-pulse" : "text-black dark:text-white"
+        isUrgent ? "text-red-500 animate-pulse" : "text-white"
       }`}
     >
       {timeLeft}
