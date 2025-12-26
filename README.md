@@ -312,7 +312,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Team
 
-**[Your Name]** - Full Stack Developer & Smart Contract Engineer
+**Peters Joshua** - Full Stack Developer & Smart Contract Engineer
+**Popoola Obaoluwa** - UI/UX designer & Project Manager
 
 Built with ❤️ for the **Sui Ecosystem** and **Sui Hackathon 2025**
 
